@@ -1,0 +1,13 @@
+{
+  "name": "caption-ai-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "cd server && pnpm dev",
+    "dev:client": "cd client && pnpm dev",
+    "dev": "npx concurrently -k -n \"backend,frontend\" -c \"magenta,cyan\" \"pnpm dev:server\" \"pnpm dev:client\"",
+    "build:server": "cd server && pnpm build",
+    "build:client": "cd client && pnpm build",
+    "build": "pnpm build:server && pnpm build:client"
+  }
+}

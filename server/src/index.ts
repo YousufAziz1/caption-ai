@@ -1,0 +1,350 @@
+import express, { Request, Response } from 'express'
+import cors from 'cors'
+import * as dotenv from 'dotenv'
+import { createPublicClient, http, parseEventLogs, getAddress } from 'viem'
+import { celo, celoSepolia } from 'viem/chains'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import axios from 'axios'
+import * as https from 'https'
+
+dotenv.config()
+
+const app = express()
+app.use(cors())
+app.use(express.json())
+
+const PORT = process.env.PORT || 3001
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
+const CELO_RPC_URL = process.env.CELO_RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org'
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || ''
+
+// ABI of GenerationPaid event
+const PAYMENT_CONTRACT_ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'user', type: 'address' },
+      { indexed: false, name: 'requestId', type: 'string' },
+      { indexed: false, name: 'amount', type: 'uint256' },
+      { indexed: false, name: 'timestamp', type: 'uint256' }
+    ],
+    name: 'GenerationPaid',
+    type: 'event'
+  }
+] as const
+
+// Replay protection store (in-memory Set for MVP)
+const processedTxHashes = new Set<string>()
+
+// Initialize Celo public client using viem
+// Detect chain from RPC url or default to Sepolia
+const isMainnet = CELO_RPC_URL.includes('forno.celo.org')
+const celoChain = isMainnet ? celo : celoSepolia
+console.log(`Connecting to Celo public client via ${CELO_RPC_URL} (${isMainnet ? 'Mainnet' : 'Sepolia'})`)
+
+const publicClient = createPublicClient({
+  chain: celoChain,
+  transport: http(CELO_RPC_URL)
+})
+
+// Initialize Gemini Client
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok', chain: celoChain.name, contractAddress: CONTRACT_ADDRESS })
+})
+
+// Helper to generate image from Hugging Face Inference API
+function generateHuggingFaceImage(promptText: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const hfKey = process.env.HF_API_KEY
+    if (!hfKey || hfKey.trim() === '' || hfKey.startsWith('your_')) {
+      console.log('Skipping Hugging Face image generation: No valid HF_API_KEY configured.')
+      return resolve(null)
+    }
+
+    const modelName = process.env.HF_MODEL || 'black-forest-labs/FLUX.1-schnell'
+    console.log(`Calling Hugging Face Inference API using model: ${modelName}`)
+
+    const postData = JSON.stringify({ inputs: promptText })
+
+    const options = {
+      hostname: 'router.huggingface.co',
+      port: 443,
+      path: `/hf-inference/models/${modelName}`,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${hfKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'image/png',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    }
+
+    const req = https.request(options, (res) => {
+      if (res.statusCode !== 200) {
+        let data = ''
+        res.on('data', (chunk) => { data += chunk })
+        res.on('end', () => {
+          console.error(`Hugging Face image generation failed: ${res.statusCode} - ${data}`)
+          resolve(null)
+        })
+        return
+      }
+
+      const chunks: Buffer[] = []
+      res.on('data', (chunk) => { chunks.push(chunk) })
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks)
+        const base64Image = buffer.toString('base64')
+        const contentType = res.headers['content-type'] || 'image/png'
+        resolve(`data:${contentType};base64,${base64Image}`)
+      })
+    })
+
+    req.on('error', (e) => {
+      console.error('Hugging Face image generation request failed:', e.message)
+      resolve(null)
+    })
+
+    req.write(postData)
+    req.end()
+  })
+}
+
+// Helper to generate text caption using Hugging Face text model as a fallback
+function generateHuggingFaceCaption(promptText: string, tone: string): Promise<{ caption: string; hashtags: string[] } | null> {
+  return new Promise((resolve) => {
+    const hfKey = process.env.HF_API_KEY
+    if (!hfKey || hfKey.trim() === '' || hfKey.startsWith('your_')) {
+      console.log('Skipping Hugging Face caption fallback: No valid HF_API_KEY.')
+      return resolve(null)
+    }
+
+    const modelName = process.env.HF_TEXT_MODEL || 'Qwen/Qwen2.5-7B-Instruct'
+    console.log(`Calling Hugging Face Text Inference API using model: ${modelName}`)
+
+    const systemInstruction = `You are a premium social media expert. Generate a single caption based on the user topic. Tone: ${tone}.
+Requirements:
+- Keep the caption text under 200 characters.
+- Do not include any tags inside the caption text itself.
+- Suggest exactly 3 highly relevant hashtags.
+- Return ONLY a valid JSON object in the following format:
+{
+  "caption": "Your generated caption here",
+  "hashtags": ["#tag1", "#tag2", "#tag3"]
+}`
+
+    const postData = JSON.stringify({
+      model: modelName,
+      messages: [
+        { role: 'system', content: systemInstruction },
+        { role: 'user', content: promptText }
+      ],
+      max_tokens: 300,
+      temperature: 0.7
+    })
+
+    const options = {
+      hostname: 'router.huggingface.co',
+      port: 443,
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${hfKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    }
+
+    const req = https.request(options, (res) => {
+      let data = ''
+      res.on('data', (chunk) => { data += chunk })
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          console.error(`HF Text API returned error: ${res.statusCode} - ${data}`)
+          return resolve(null)
+        }
+
+        try {
+          const parsedData = JSON.parse(data)
+          const content = parsedData.choices?.[0]?.message?.content?.trim()
+          if (!content) return resolve(null)
+
+          // Clean output in case model returned markdown codeblocks
+          let cleanJson = content
+          if (cleanJson.startsWith('```')) {
+            cleanJson = cleanJson.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()
+          }
+
+          const parsed = JSON.parse(cleanJson)
+          resolve({
+            caption: parsed.caption || '',
+            hashtags: parsed.hashtags || []
+          })
+        } catch (error: any) {
+          console.error('Failed to parse Hugging Face text completion response:', error.message || error)
+          resolve(null)
+        }
+      })
+    })
+
+    req.on('error', (e) => {
+      console.error('Hugging Face caption request failed:', e.message)
+      resolve(null)
+    })
+
+    req.write(postData)
+    req.end()
+  })
+}
+
+
+app.post('/api/generate', async (req: Request, res: Response): Promise<any> => {
+  const { walletAddress, txHash, prompt, tone } = req.body
+
+  if (!walletAddress || !txHash || !prompt) {
+    return res.status(400).json({ error: 'Missing required parameters: walletAddress, txHash, prompt' })
+  }
+
+  // Check if transaction hash was already processed (replay prevention)
+  const normalizedTxHash = txHash.toLowerCase()
+  if (processedTxHashes.has(normalizedTxHash)) {
+    return res.status(400).json({ error: 'Transaction hash has already been used' })
+  }
+
+  try {
+    if (!CONTRACT_ADDRESS) {
+      return res.status(500).json({ error: 'Server misconfiguration: CONTRACT_ADDRESS not set' })
+    }
+
+    console.log(`Verifying transaction: ${normalizedTxHash} for wallet: ${walletAddress}`)
+    
+    // 1. Fetch transaction receipt on-chain
+    const receipt = await publicClient.getTransactionReceipt({
+      hash: normalizedTxHash as `0x${string}`
+    })
+
+    if (!receipt) {
+      return res.status(402).json({ error: 'Transaction receipt not found on Celo' })
+    }
+
+    if (receipt.status !== 'success') {
+      return res.status(402).json({ error: 'Transaction has failed on-chain' })
+    }
+
+    // Verify contract address matches (case-insensitive)
+    const receiptTo = receipt.to ? getAddress(receipt.to) : ''
+    const configContract = getAddress(CONTRACT_ADDRESS)
+
+    if (receiptTo !== configContract) {
+      return res.status(402).json({ error: 'Transaction was not sent to the CaptionAI payment contract' })
+    }
+
+    // 2. Parse events in receipt logs
+    const logs = parseEventLogs({
+      abi: PAYMENT_CONTRACT_ABI,
+      logs: receipt.logs,
+      eventName: 'GenerationPaid'
+    })
+
+    if (logs.length === 0) {
+      return res.status(402).json({ error: 'No GenerationPaid event found in transaction logs' })
+    }
+
+    // Check that the user address in event matches the sender
+    const paidUser = getAddress(logs[0].args.user)
+    const senderUser = getAddress(walletAddress)
+
+    if (paidUser !== senderUser) {
+      return res.status(402).json({ error: 'Transaction sender does not match payment sender address' })
+    }
+
+    console.log(`Transaction verified successfully! RequestId: ${logs[0].args.requestId}, Fee Paid: ${logs[0].args.amount}`)
+
+    // 3. Mark transaction as processed
+    processedTxHashes.add(normalizedTxHash)
+
+    // 4. Generate caption using Google Gemini API
+    const selectedTone = tone || 'Hype'
+    const finalPrompt = `
+      You are a premium social media expert.
+      Generate a single caption based on this request: "${prompt}".
+      The tone must be: ${selectedTone}.
+      
+      Requirements:
+      - Keep the caption text under 200 characters.
+      - Do not include any tags inside the caption text itself.
+      - Suggest exactly 3 highly relevant hashtags.
+      - Return ONLY a valid JSON object in the following format:
+      {
+        "caption": "Your generated caption here",
+        "hashtags": ["#tag1", "#tag2", "#tag3"]
+      }
+      
+      Do not include markdown code block formatting (like \`\`\`json). Return raw JSON string only.
+    `
+
+    console.log(`Executing Gemini and Hugging Face generation in parallel. Tone: ${selectedTone}`)
+    const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+    const model = genAI.getGenerativeModel({ model: geminiModel })
+
+    // Execute content and image generation in parallel
+    const [geminiResult, imageUrl] = await Promise.all([
+      model.generateContent(finalPrompt).catch(err => {
+        console.error('Gemini content generation failed:', err)
+        return null
+      }),
+      generateHuggingFaceImage(prompt).catch(err => {
+        console.error('Hugging Face image generation failed:', err)
+        return null
+      })
+    ])
+
+    let captionData: { caption: string; hashtags: string[] } | null = null
+
+    if (geminiResult) {
+      const responseText = geminiResult.response.text().trim()
+      let cleanJson = responseText
+      if (cleanJson.startsWith('```')) {
+        cleanJson = cleanJson.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()
+      }
+      try {
+        const parsed = JSON.parse(cleanJson)
+        captionData = {
+          caption: parsed.caption || '',
+          hashtags: parsed.hashtags || []
+        }
+      } catch (parseErr) {
+        console.error('Failed to parse Gemini output as JSON:', responseText, parseErr)
+        captionData = {
+          caption: responseText.slice(0, 200),
+          hashtags: ['#captionai', '#celo', '#minipay']
+        }
+      }
+    }
+
+    // Fallback to Hugging Face text model if Gemini failed or was skipped
+    if (!captionData) {
+      console.log('Gemini failed/quota exceeded. Attempting Hugging Face text model fallback...')
+      captionData = await generateHuggingFaceCaption(prompt, selectedTone)
+    }
+
+    if (!captionData) {
+      throw new Error('Both Gemini and Hugging Face caption generation failed. Please verify API keys.')
+    }
+
+    return res.json({
+      caption: captionData.caption,
+      hashtags: captionData.hashtags,
+      imageUrl: imageUrl || undefined
+    })
+  } catch (error: any) {
+    console.error('Generation verification error:', error)
+    return res.status(500).json({ error: `Internal server error: ${error.message || error}` })
+  }
+})
+
+app.listen(PORT, () => {
+  console.log(`CaptionAI backend server running on port ${PORT}`)
+})

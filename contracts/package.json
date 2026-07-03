@@ -1,0 +1,18 @@
+{
+  "name": "caption-ai-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for CaptionAI payments on Celo",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network celoSepolia",
+    "deploy:mainnet": "hardhat run scripts/deploy.ts --network celoMainnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.2",
+    "typescript": "^5.4.3"
+  }
+}
