@@ -31,10 +31,7 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: {
-      celoSepolia: CELOSCAN_API_KEY,
-      celoMainnet: CELOSCAN_API_KEY,
-    },
+    apiKey: CELOSCAN_API_KEY,
     customChains: [
       {
         network: "celoSepolia",
@@ -53,6 +50,9 @@ const config: HardhatUserConfig = {
         },
       },
     ],
+  },
+  sourcify: {
+    enabled: false,
   },
 };
 

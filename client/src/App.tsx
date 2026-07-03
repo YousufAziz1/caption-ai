@@ -105,11 +105,13 @@ export default function App() {
   // Deployed contract address (can load from Vite env, fallback will be updated after deployment)
   let PAYMENT_CONTRACT_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS || 
     (isMainnet
-      ? '0x0000000000000000000000000000000000000000' // We will deploy on Celo Mainnet
+      ? '0x4C534383A4158fC9C4a712213700ab6D7084343a' // Deployed Celo Mainnet
       : '0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2')) as `0x${string}` // Deployed Sepolia address
 
   if (PAYMENT_CONTRACT_ADDRESS.toLowerCase() === '0x3c73703e6464fe6c3a7a93608779901be0629731') {
-    PAYMENT_CONTRACT_ADDRESS = '0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2' as `0x${string}`
+    PAYMENT_CONTRACT_ADDRESS = isMainnet
+      ? '0x4C534383A4158fC9C4a712213700ab6D7084343a' as `0x${string}`
+      : '0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2' as `0x${string}`
   }
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'

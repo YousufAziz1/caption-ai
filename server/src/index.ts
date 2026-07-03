@@ -271,14 +271,15 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<any> => {
 
     const allowedRecipients = new Set([
       configContract,
-      getAddress('0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2'),
-      getAddress('0x3c73703E6464Fe6C3A7A93608779901BE0629731')
+      getAddress('0x4C534383A4158fC9C4a712213700ab6D7084343a'), // Celo Mainnet contract
+      getAddress('0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2'), // Celo Sepolia contract
+      getAddress('0x3c73703E6464Fe6C3A7A93608779901BE0629731')   // Old EOA (legacy)
     ])
 
     const allowedTokens = new Set([
-      getAddress('0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b'),
-      getAddress('0x874069fa1eb16d44d622f2e0ca25eea172369bc1'),
-      getAddress('0x765de816845861e75a25fca122bb6898b8b1282a')
+      getAddress('0x765de816845861e75a25fca122bb6898b8b1282a'), // cUSD Mainnet
+      getAddress('0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b'), // cUSD Sepolia (USDm)
+      getAddress('0x874069fa1eb16d44d622f2e0ca25eea172369bc1')  // cUSD Sepolia (alt)
     ])
 
     // Mode A: Try parsing the GenerationPaid smart contract event first
