@@ -322,7 +322,7 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<any> => {
             allowedTokens.has(tokenAddress) &&
             from === senderUser &&
             allowedRecipients.has(to) &&
-            value >= 20000000000000000n // 0.02 cUSD (2 * 10^16)
+            value >= 10000000000000000n // 0.01 cUSD (1 * 10^16)
           ) {
             isPaid = true
             verifiedDetails = `Fallback cUSD Transfer verified! Token: ${tokenAddress}, Recipient: ${to}, Value: ${value}`

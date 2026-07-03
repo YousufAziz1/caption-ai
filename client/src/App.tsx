@@ -171,13 +171,13 @@ export default function App() {
         throw new Error('Wallet not connected or network unavailable')
       }
 
-      // Ensure the wallet is on the correct network (Celo Sepolia)
+      // Ensure the wallet is on the correct network (Celo Mainnet)
       if (chain?.id !== TARGET_CHAIN_ID) {
-        setLoadingStep('Switching network to Celo Sepolia...')
+        setLoadingStep('Switching network to Celo Mainnet...')
         try {
           await switchChainAsync({ chainId: TARGET_CHAIN_ID })
         } catch (switchError) {
-          throw new Error('Please switch your wallet network to Celo Sepolia to proceed.')
+          throw new Error('Please switch your wallet network to Celo Mainnet to proceed.')
         }
         // Wait a brief moment for chain change to propagate
         await new Promise((resolve) => setTimeout(resolve, 1500))
@@ -195,12 +195,12 @@ export default function App() {
         args: [userAddress, spenderAddress]
       })
 
-      const feeAmount = parseEther('0.02') // 0.02 cUSD
-      const approvalAmount = parseEther('0.50') // 0.50 cUSD to optimize future runs
+      const feeAmount = parseEther('0.01') // 0.01 cUSD
+      const approvalAmount = parseEther('0.25') // 0.25 cUSD to optimize future runs
 
       // If allowance is insufficient, request approval
       if (currentAllowance < feeAmount) {
-        setLoadingStep('Approving cUSD (0.50 cUSD for 25 runs)...')
+        setLoadingStep('Approving cUSD (0.25 cUSD for 25 runs)...')
         const approveTx = await writeContractAsync({
           address: cUSDTokenAddress,
           abi: ERC20_ABI,
@@ -213,7 +213,7 @@ export default function App() {
       }
 
       // Execute payment contract call
-      setLoadingStep('Paying fee (0.02 cUSD)...')
+      setLoadingStep('Paying fee (0.01 cUSD)...')
       const requestId = Math.random().toString(36).substring(7) + Date.now()
       
       const payTx = await writeContractAsync({
@@ -480,7 +480,7 @@ export default function App() {
                 <div>
                   <p className="text-[11px] text-[var(--text-muted)] font-medium leading-none mb-1">Fee per generation</p>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
-                    0.02 cUSD <span className="text-[var(--success)] ml-1.5 font-medium text-xs">(~₹1.60 INR)</span>
+                    0.01 cUSD <span className="text-[var(--success)] ml-1.5 font-medium text-xs">(~₹0.80 INR)</span>
                   </p>
                 </div>
               </div>
