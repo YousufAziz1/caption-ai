@@ -14,7 +14,7 @@ Instead of forcing creators into expensive monthly subscriptions, CaptionAI oper
 - **Live dApp URL:** [https://caption-ai-self.vercel.app](https://caption-ai-self.vercel.app)
 - **Backend API URL:** [https://caption-ai-or3z.onrender.com](https://caption-ai-or3z.onrender.com)
 - **Demo Video (Max 4 mins):** [Watch Demo Video](YOUR_DEMO_VIDEO_LINK_HERE) *(Please replace with your actual YouTube/Loom video link)*
-- **Pitch Deck (Max 10 slides):** [View Pitch Deck](YOUR_PITCH_DECK_LINK_HERE) *(Please replace with your actual Pitch Deck link)*
+- **Pitch Deck (Max 10 slides):** [View Pitch Deck](https://gamma.app/docs/Pay-per-use-AI-content-generation-for-MiniPay-zwin7rrhqvj109y?mode=doc) *(Please replace with your actual Pitch Deck link)*
 
 ---
 
