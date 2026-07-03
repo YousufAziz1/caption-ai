@@ -113,19 +113,22 @@ export default function App() {
   // MiniPay Detection
   const isMiniPay = typeof window !== 'undefined' && (window as any).ethereum?.isMiniPay
 
+  const [hasAttemptedAutoConnect, setHasAttemptedAutoConnect] = useState(false)
+
   // 1. Silent Auto-reconnect for returning users & auto-connect specifically for MiniPay
   useEffect(() => {
     reconnect()
   }, [reconnect])
 
   useEffect(() => {
-    if (isMiniPay && !isConnected && !isConnecting) {
+    if (isMiniPay && !isConnected && !isConnecting && !hasAttemptedAutoConnect) {
       const injectedConnector = connectors.find((c) => c.id === 'injected' || c.name.toLowerCase().includes('injected'))
       if (injectedConnector) {
+        setHasAttemptedAutoConnect(true)
         connect({ connector: injectedConnector })
       }
     }
-  }, [isMiniPay, isConnected, connectors, connect, isConnecting])
+  }, [isMiniPay, isConnected, connectors, connect, isConnecting, hasAttemptedAutoConnect])
 
   // 2. Load History
   useEffect(() => {
