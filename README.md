@@ -4,52 +4,93 @@
   <img src="client/public/favicon.svg" alt="CaptionAI Logo" width="120" height="120" />
 </p>
 
-**CaptionAI** is a premium content generation dashboard built specifically for **Celo's MiniPay** (Opera's self-custodial stablecoin wallet with over 16M+ users). 
+**CaptionAI** is a premium content generation dashboard built specifically for **Celo's MiniPay** (Opera's self-custodial stablecoin wallet with over 16M+ users) and general Celo Mainnet users.
 
-Instead of forcing users into expensive monthly subscriptions, CaptionAI operates on a **utility-based microtransaction model**. Users pay exactly **0.02 cUSD** (~₹1.60 INR) per generation on-chain. This micro-billing mechanism drives consistent, high-frequency transactions to the Celo network while making advanced AI content creation accessible and cheap for everyone.
+Instead of forcing creators into expensive monthly subscriptions, CaptionAI operates on a **utility-based microtransaction model**. Users pay exactly **0.01 cUSD / USDC** (~₹0.80 INR) per AI generation on-chain. This micro-billing mechanism drives consistent, high-frequency transactions to the Celo network while making advanced AI content creation highly accessible.
+
+---
+
+## 🔗 Project Assets & Submission Links
+- **Live dApp URL:** [https://caption-ai-self.vercel.app](https://caption-ai-self.vercel.app)
+- **Backend API URL:** [https://caption-ai-or3z.onrender.com](https://caption-ai-or3z.onrender.com)
+- **Demo Video (Max 4 mins):** [Watch Demo Video](YOUR_DEMO_VIDEO_LINK_HERE) *(Please replace with your actual YouTube/Loom video link)*
+- **Pitch Deck (Max 10 slides):** [View Pitch Deck](YOUR_PITCH_DECK_LINK_HERE) *(Please replace with your actual Pitch Deck link)*
 
 ---
 
 ## 🚀 Celo Proof of Ship Checklist & Alignment
 
-- [x] **MiniPay Optimized:** Silent auto-connection to MiniPay injected provider, high contrast 375px mobile-responsive design, and lightweight script sizes.
+- [x] **Celo Mainnet Deployed:** Verified smart contracts deployed and active on Celo Mainnet.
+- [x] **MiniPay Optimized:** Injected provider auto-detection, auto-connect, and high contrast 375px mobile-responsive design tailored for MiniPay's in-app browser.
+- [x] **Multi-Token Fallback Support:** Smart wallet balance auto-detection supports both **cUSD** and **USDC** on Celo Mainnet.
 - [x] **Smart Micro-allowance Caching:** Custom allowance pre-approval flow reducing double prompt signups to a single smooth click.
-- [x] **Verified On-Chain Contracts:** Deployed and validated contract emitting real-time event logs on Celo Sepolia.
-- [x] **Structured SEO & MPA Layout:** Multi-page application structure featuring index-linked routes for Privacy, Terms, About, and Contact pages alongside structured Google PAA JSON-LD schema.
-- [x] **State-of-the-Art AI:** Integrated with Gemini's newest generation text models and high-resolution FLUX image generation architectures.
+- [x] **Structured SEO & MPA Layout:** Multi-page architecture containing index-linked routes for Privacy, Terms, About, and Contact pages with Google PAA JSON-LD schemas.
+- [x] **State-of-the-Art AI:** Integrated Gemini Pro models and high-resolution FLUX image generation architectures.
+
+---
+
+## 📅 Milestones & Progress (This Month)
+
+All progress has been pushed directly to the `main` branch. Key code updates and milestones completed:
+* **Celo Mainnet Deployments**: Deployed stable contracts for cUSD and USDC payments, configured with standard 0.01 micro-fees.
+* **Dual-Token Client Auto-detection**: Implemented smart client-side logic to detect whether a user has `cUSD` or `USDC` in their wallet, dynamically adjusting contract addresses, ERC20 tokens, and decimal sizes.
+* **Pre-flight Wallet Verification**: Added proactive balance checks to prevent users from submitting transactions that would fail on-chain.
+* **Performance & Smooth Scrolling**: Optimized animation frame rates by shifting background meshes to GPU 3D-acceleration (`translate3d`, `will-change`) and resolved viewport double-scrollbars on WebKit/Chrome.
+* **Backend Verification Pipeline**: Engineered a replay-safe, multi-token verification handler using `viem` to query event logs directly from the Celo blockchain.
+
+---
+
+## ⚠️ Problem
+
+Existing social media and image generators lock users into expensive **monthly subscriptions ($15 to $40/month)**. 
+For casual creators, indie hackers, and users in developing countries:
+1. **High Barriers to Entry:** Paying a flat monthly fee for only 2 or 3 generations per month is unaffordable and inefficient.
+2. **Onboarding Friction:** Web3 and blockchain apps often require complex transactions, causing high drop-off rates due to signing multiple approvals (ERC20 Approve + Call Contract) for simple actions.
+3. **Single-Currency Dependence:** Apps that only accept a single stablecoin fail when users only have another major stablecoin (e.g. USDT/USDC vs cUSD) in their wallet.
+
+---
+
+## ✨ Solution
+
+**CaptionAI** solves this by combining decentralized microtransactions with state-of-the-art AI:
+1. **Pay-Per-Use Model:** Micro-billing charges exactly **0.01 cUSD / USDC** per generation. Users only pay for what they generate.
+2. **Smart Allowance Pre-Approval:** Rather than forcing users to sign two prompts (Approve + Pay) every single time, CaptionAI prompts a one-time approval of 0.50 stablecoin (covering 50 generations). Future generations execute in **one single signature**.
+3. **Smart Multi-Token Swapping:** Automatically detects if a user's `cUSD` balance is insufficient and switches to `USDC` dynamically to execute the payment transparently.
+4. **Instant Validation & Output:** Generations complete in seconds, sending high-converting copy outputs and stunning visual elements straight to the client.
 
 ---
 
 ## 🎨 Technology Stack & Architecture
 
 - **Smart Contracts (Solidity + Hardhat):**
-  - Zero-custody fee processor that transfers cUSD directly from the user's wallet to a treasury address and emits a `GenerationPaid` log.
+  - Zero-custody fee processor that transfers cUSD/USDC directly from the user's wallet to a treasury address and emits a `GenerationPaid` log.
 - **Backend (Express + Node + TypeScript + Viem + Gemini API + FLUX API):**
   - Listens to transaction hashes and queries Celo nodes directly via `viem` to check block status.
   - Verifies ERC20 receipts, sender, receiver, values, logs, and protects against replay attacks.
   - Runs Gemini & FLUX pipelines to return fully structured JSON captions and visual content.
 - **Frontend (Vite + React 18 + TailwindCSS + Wagmi + Viem):**
-  - Responsive multi-column layout with dark/light mode switcher, dynamic mesh gradients, and micro-interactions.
+  - Responsive layout with dark/light mode switcher, dynamic mesh gradients, and micro-interactions.
 
 ### 🔄 Architectural Data Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as MiniPay User
+    actor User as MiniPay / Celo User
     participant App as React Frontend
-    participant Wallet as MiniPay Wallet
+    participant Wallet as Wallet Provider
     participant Node as Celo Node (RPC)
     participant Server as Express Server
     participant Gemini as Gemini AI API
 
     User->>App: Input prompt & Select tone
-    Note over App: Check allowance for 0.02 cUSD
+    Note over App: Check wallet balance & select token (cUSD or USDC)
+    Note over App: Check allowance for 0.01 token
     alt Allowance is 0
-        App->>Wallet: Request Pre-Approval (0.50 cUSD)
+        App->>Wallet: Request Pre-Approval (0.50 token)
         Wallet->>App: Approve success (signed)
     end
-    App->>Wallet: Transfer fee (payAndGenerate - 0.02 cUSD)
+    App->>Wallet: Transfer fee (payAndGenerate - 0.01 token)
     Wallet->>Node: Publish Transaction
     Wallet->>App: Return Transaction Hash (txHash)
     App->>Server: POST /api/generate (with txHash & prompt)
@@ -57,7 +98,7 @@ sequenceDiagram
         Note over Server: Server Verification
         Server->>Node: Query Transaction Receipt (viem)
         Node-->>Server: Return transaction logs (Receipt)
-        Server->>Server: Verify value == 0.02 cUSD && Receiver == Treasury
+        Server->>Server: Verify value == 0.01 token && Receiver == Treasury
         Server->>Server: Check if txHash has already been processed (Replay protection)
     end
     Server->>Gemini: Fetch generated text & prompts
@@ -68,107 +109,51 @@ sequenceDiagram
 
 ---
 
-## 🎨 Premium UI/UX Optimization: Smart Allowance Pre-Approval
+## 📜 Deployed Contracts (Celo Mainnet)
 
-To save users from signing **two wallet prompts** (Approve ERC20 + Pay Contract) for every single generation, CaptionAI implements a smart pre-approval workflow:
-1. When the user taps **Generate**, the client checks their remaining cUSD allowance.
-2. If the allowance is less than `0.02 cUSD`, the client requests a one-time approval of **0.50 cUSD** (enough to cover 25 generations).
-3. For subsequent generations, the allowance check passes automatically, and the user signs **exactly one prompt** (the `payAndGenerate` fee transfer) directly inside MiniPay.
+* **cUSD Payment Contract:** [`0x4C534383A4158fC9C4a712213700ab6D7084343a`](https://celoscan.io/address/0x4C534383A4158fC9C4a712213700ab6D7084343a)
+* **USDC Payment Contract:** [`0xf22e90Cc5E2198c2ad1e6a0edF620245a6b6fe13`](https://celoscan.io/address/0xf22e90Cc5E2198c2ad1e6a0edF620245a6b6fe13)
 
----
-
-## 📁 Project Structure
-
-```
-caption-ai/
-├── contracts/          # Hardhat contracts workspace
-│   ├── contracts/      # Solidity source code (Payment contract, Mock token)
-│   ├── scripts/        # Deployment scripts (target-aware)
-│   └── test/           # Hardhat unit tests
-├── server/             # Express server API
-│   └── src/            # TypeScript entry point (viem validator + Gemini integration)
-└── client/             # React frontend app
-    ├── src/            # Vite entry files, hooks, views, and styling variables
-    └── index.html      # Meta and Web App manifest links
-```
+### Deployed Contracts (Celo Sepolia Testnet)
+* **cUSD Payment Contract:** [`0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2`](https://sepolia.celoscan.io/address/0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2)
 
 ---
 
-## 📦 Getting Started
+## ⚙️ Development & Local Setup
 
-### 1. Smart Contracts Setup
-
-Navigate to the `contracts/` directory and install dependencies:
+### 1. Smart Contracts
 ```bash
 cd contracts
 pnpm install
+# Compile contracts
+pnpm compile
+# Run unit tests
+pnpm test
 ```
+* **Deploy to Celo Mainnet:** `npx hardhat run scripts/deploy.ts --network celoMainnet`
 
-Configure your environment variables by copying `.env.example`:
+### 2. Backend Server
 ```bash
-cp .env.example .env
-```
-Fill in your `PRIVATE_KEY` (containing testnet/mainnet CELO/cUSD) and your `CELOSCAN_API_KEY`.
-
-**Available Scripts:**
-- `pnpm compile` — Compiles Solidity contracts.
-- `pnpm test` — Runs the test suite verifying forwarding, allowance rules, and ownership controls.
-- `pnpm deploy:sepolia` — Deploys to Celo Sepolia Testnet.
-- `pnpm deploy:mainnet` — Deploys to Celo Mainnet.
-
-#### Deployed Address (Celo Sepolia Testnet):
-- **CaptionAIPayment:** [`0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2`](https://sepolia.celoscan.io/address/0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2)
-- **MockcUSD Token:** [`0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b`](https://sepolia.celoscan.io/address/0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b)
-
----
-
-### 2. Backend Server Setup
-
-Navigate to the `server/` directory and install dependencies:
-```bash
-cd ../server
+cd server
 pnpm install
-```
-
-Create a `.env` file:
-```bash
 cp .env.example .env
+# Start dev server
+pnpm dev
 ```
-Provide the required variables:
-- `GEMINI_API_KEY`: API Key from Google AI Studio.
-- `CONTRACT_ADDRESS`: The deployed `CaptionAIPayment` contract address.
-- `CELO_RPC_URL`: Set to `https://forno.celo.org` for Mainnet, or keep default Sepolia.
 
-**Available Scripts:**
-- `pnpm dev` — Starts the development server with hot-reloading at `http://localhost:3001`.
-- `pnpm build` — Compiles TypeScript into JS output in `dist/`.
-- `pnpm start` — Runs the compiled server.
-
----
-
-### 3. Frontend Client Setup
-
-Navigate to the `client/` directory and install dependencies:
+### 3. Frontend Client
 ```bash
-cd ../client
+cd client
 pnpm install
+cp .env.example .env
+# Start local host
+pnpm dev
 ```
-
-Configure environment variables. Create a `.env` file:
-```env
-VITE_CONTRACT_ADDRESS=0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2
-VITE_API_BASE_URL=http://localhost:3001
-```
-
-**Available Scripts:**
-- `pnpm dev` — Starts Vite dev server locally at `http://localhost:3000`.
-- `pnpm build` — Compiles and bundles React client for production build.
 
 ---
 
-## 🔒 Security & Replay Protection
+## 💡 Implementation Hurdle & Feedback
 
-The Express backend implements strict security checks:
-- **Receipt Querying:** Queries the Celo RPC directly using `viem` to verify that the transaction receipt exists, succeeded, and targeted the correct contract address.
-- **Log Verification:** Parses the receipt logs to check if the `GenerationPaid` event was emitted, verifying that the user address matches the prompt requestor.
-- **Replay Protection:** Keeps track of processed transaction hashes. If a transaction hash is sent twice, the backend rejects it instantly, ensuring each micro-fee is only used once.
+1. **ERC20 Token Decimals:** Handling USDC's 6 decimals versus cUSD's 18 decimals on-chain required meticulous conversion checks. We solved this by developing dynamic validation pipelines on both client and server layers to adjust scale factors based on the contract address.
+2. **Double Scrollbar Glitches:** Initial Tailwind scroll wrappers triggered double-scrollbars on mobile views. Shifting overflow constraints solely to the `html` element and setting child page layouts to `overflow: visible` completely resolved this.
+3. **MiniPay Provider Detection:** Handling lazy-loading injected providers inside Opera MiniPay was solved by configuring connection retry hooks in Wagmi to ensure users are never left with a blank or unresponsive connect button.
