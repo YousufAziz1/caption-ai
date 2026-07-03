@@ -16,7 +16,10 @@ app.use(express.json())
 const PORT = process.env.PORT || 3001
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
 const CELO_RPC_URL = process.env.CELO_RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org'
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2'
+let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2'
+if (CONTRACT_ADDRESS.toLowerCase() === '0x3c73703e6464fe6c3a7a93608779901be0629731') {
+  CONTRACT_ADDRESS = '0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2'
+}
 
 // ABI of GenerationPaid event
 const PAYMENT_CONTRACT_ABI = [
@@ -29,6 +32,20 @@ const PAYMENT_CONTRACT_ABI = [
       { indexed: false, name: 'timestamp', type: 'uint256' }
     ],
     name: 'GenerationPaid',
+    type: 'event'
+  }
+] as const
+
+// ABI of ERC20 Transfer event (for fallback verification)
+const ERC20_TRANSFER_ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'from', type: 'address' },
+      { indexed: true, name: 'to', type: 'address' },
+      { indexed: false, name: 'value', type: 'uint256' }
+    ],
+    name: 'Transfer',
     type: 'event'
   }
 ] as const
@@ -246,34 +263,81 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<any> => {
       return res.status(402).json({ error: 'Transaction has failed on-chain' })
     }
 
-    // Verify contract address matches (case-insensitive)
-    const receiptTo = receipt.to ? getAddress(receipt.to) : ''
+    let isPaid = false
+    let verifiedDetails = ''
+
+    const senderUser = getAddress(walletAddress)
     const configContract = getAddress(CONTRACT_ADDRESS)
 
-    if (receiptTo !== configContract) {
-      return res.status(402).json({ error: 'Transaction was not sent to the CaptionAI payment contract' })
+    const allowedRecipients = new Set([
+      configContract,
+      getAddress('0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2'),
+      getAddress('0x3c73703E6464Fe6C3A7A93608779901BE0629731')
+    ])
+
+    const allowedTokens = new Set([
+      getAddress('0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b'),
+      getAddress('0x874069fa1eb16d44d622f2e0ca25eea172369bc1'),
+      getAddress('0x765de816845861e75a25fca122bb6898b8b1282a')
+    ])
+
+    // Mode A: Try parsing the GenerationPaid smart contract event first
+    try {
+      const logs = parseEventLogs({
+        abi: PAYMENT_CONTRACT_ABI,
+        logs: receipt.logs,
+        eventName: 'GenerationPaid'
+      })
+
+      if (logs.length > 0) {
+        const paidUser = getAddress(logs[0].args.user)
+        if (paidUser === senderUser) {
+          isPaid = true
+          verifiedDetails = `Smart contract payment verified! RequestId: ${logs[0].args.requestId}, Fee Paid: ${logs[0].args.amount}`
+        } else {
+          return res.status(402).json({ error: 'Transaction sender in event does not match payment sender address' })
+        }
+      }
+    } catch (err: any) {
+      console.log('Skipping GenerationPaid parsing (non-compatible contract/receipt):', err.message || err)
     }
 
-    // 2. Parse events in receipt logs
-    const logs = parseEventLogs({
-      abi: PAYMENT_CONTRACT_ABI,
-      logs: receipt.logs,
-      eventName: 'GenerationPaid'
-    })
+    // Mode B (Fallback): Parse standard ERC20 cUSD transfer events
+    if (!isPaid) {
+      try {
+        const transferLogs = parseEventLogs({
+          abi: ERC20_TRANSFER_ABI,
+          logs: receipt.logs,
+          eventName: 'Transfer'
+        })
 
-    if (logs.length === 0) {
-      return res.status(402).json({ error: 'No GenerationPaid event found in transaction logs' })
+        for (const log of transferLogs) {
+          const tokenAddress = getAddress(log.address)
+          const from = getAddress(log.args.from)
+          const to = getAddress(log.args.to)
+          const value = log.args.value
+
+          if (
+            allowedTokens.has(tokenAddress) &&
+            from === senderUser &&
+            allowedRecipients.has(to) &&
+            value >= 20000000000000000n // 0.02 cUSD (2 * 10^16)
+          ) {
+            isPaid = true
+            verifiedDetails = `Fallback cUSD Transfer verified! Token: ${tokenAddress}, Recipient: ${to}, Value: ${value}`
+            break
+          }
+        }
+      } catch (err: any) {
+        console.error('Failed to parse ERC20 Transfer logs:', err.message || err)
+      }
     }
 
-    // Check that the user address in event matches the sender
-    const paidUser = getAddress(logs[0].args.user)
-    const senderUser = getAddress(walletAddress)
-
-    if (paidUser !== senderUser) {
-      return res.status(402).json({ error: 'Transaction sender does not match payment sender address' })
+    if (!isPaid) {
+      return res.status(402).json({ error: 'No valid payment (GenerationPaid event or direct cUSD transfer) found for this transaction' })
     }
 
-    console.log(`Transaction verified successfully! RequestId: ${logs[0].args.requestId}, Fee Paid: ${logs[0].args.amount}`)
+    console.log(verifiedDetails)
 
     // 3. Mark transaction as processed
     processedTxHashes.add(normalizedTxHash)
