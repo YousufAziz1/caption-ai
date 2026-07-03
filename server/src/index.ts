@@ -271,12 +271,14 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<any> => {
 
     const allowedRecipients = new Set([
       configContract,
-      getAddress('0x4C534383A4158fC9C4a712213700ab6D7084343a'), // Celo Mainnet contract
+      getAddress('0xf22e90Cc5E2198c2ad1e6a0edF620245a6b6fe13'), // Celo Mainnet USDC contract
+      getAddress('0x4C534383A4158fC9C4a712213700ab6D7084343a'), // Celo Mainnet cUSD contract
       getAddress('0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2'), // Celo Sepolia contract
       getAddress('0x3c73703E6464Fe6C3A7A93608779901BE0629731')   // Old EOA (legacy)
     ])
 
     const allowedTokens = new Set([
+      getAddress('0xcebA9300f2b948710d2653dD7B07f33A8B32118C'), // USDC Mainnet (native Circle)
       getAddress('0x765de816845861e75a25fca122bb6898b8b1282a'), // cUSD Mainnet
       getAddress('0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b'), // cUSD Sepolia (USDm)
       getAddress('0x874069fa1eb16d44d622f2e0ca25eea172369bc1')  // cUSD Sepolia (alt)
@@ -303,7 +305,7 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<any> => {
       console.log('Skipping GenerationPaid parsing (non-compatible contract/receipt):', err.message || err)
     }
 
-    // Mode B (Fallback): Parse standard ERC20 cUSD transfer events
+    // Mode B (Fallback): Parse standard ERC20 transfer events
     if (!isPaid) {
       try {
         const transferLogs = parseEventLogs({
@@ -318,14 +320,17 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<any> => {
           const to = getAddress(log.args.to)
           const value = log.args.value
 
+          const isUSDCToken = tokenAddress === getAddress('0xcebA9300f2b948710d2653dD7B07f33A8B32118C')
+          const meetsMinFee = isUSDCToken ? value >= 10000n : value >= 10000000000000000n
+
           if (
             allowedTokens.has(tokenAddress) &&
             from === senderUser &&
             allowedRecipients.has(to) &&
-            value >= 10000000000000000n // 0.01 cUSD (1 * 10^16)
+            meetsMinFee
           ) {
             isPaid = true
-            verifiedDetails = `Fallback cUSD Transfer verified! Token: ${tokenAddress}, Recipient: ${to}, Value: ${value}`
+            verifiedDetails = `Fallback Transfer verified! Token: ${tokenAddress}, Recipient: ${to}, Value: ${value}`
             break
           }
         }

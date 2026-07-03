@@ -185,27 +185,51 @@ export default function App() {
       }
 
       const userAddress = getAddress(address)
-      const spenderAddress = getAddress(PAYMENT_CONTRACT_ADDRESS)
-      const cUSDTokenAddress = getAddress(CUSD_ADDRESS)
+      let spenderAddress = getAddress(PAYMENT_CONTRACT_ADDRESS)
+      let tokenAddress = getAddress(CUSD_ADDRESS)
+      
+      let feeAmount = parseEther('0.01') // 0.01 cUSD (18 decimals)
+      let approvalAmount = parseEther('0.25') // 0.25 cUSD (18 decimals)
+      let tokenSymbol = 'cUSD'
 
-      const feeAmount = parseEther('0.01') // 0.01 cUSD
-      const approvalAmount = parseEther('0.25') // 0.25 cUSD to optimize future runs
-
-      // Check cUSD balance
+      // Check cUSD balance first
       const cUSDBalance = await publicClient.readContract({
-        address: cUSDTokenAddress,
+        address: tokenAddress,
         abi: ERC20_ABI,
         functionName: 'balanceOf',
         args: [userAddress]
       })
 
-      if (cUSDBalance < feeAmount) {
-        throw new Error('Insufficient cUSD balance. You need at least 0.01 cUSD to proceed. Please swap some CELO to cUSD in your wallet.')
+      let useUSDC = false
+      if (cUSDBalance < feeAmount && isMainnet) {
+        // Fallback to checking USDC balance on mainnet
+        const usdcTokenAddress = getAddress('0xcebA9300f2b948710d2653dD7B07f33A8B32118C')
+        const usdcBalance = await publicClient.readContract({
+          address: usdcTokenAddress,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [userAddress]
+        })
+
+        const minUSDCFee = 10000n // 0.01 USDC (6 decimals)
+        if (usdcBalance >= minUSDCFee) {
+          useUSDC = true
+          tokenAddress = usdcTokenAddress
+          spenderAddress = getAddress('0xf22e90Cc5E2198c2ad1e6a0edF620245a6b6fe13') // USDC Payment Contract
+          feeAmount = minUSDCFee
+          approvalAmount = 250000n // 0.25 USDC (6 decimals)
+          tokenSymbol = 'USDC'
+        }
       }
 
-      // Check cUSD allowance
+      // If both are insufficient
+      if (!useUSDC && cUSDBalance < feeAmount) {
+        throw new Error('Insufficient balance. You need at least 0.01 cUSD or 0.01 USDC to proceed. Please fund your wallet with cUSD or USDC.')
+      }
+
+      // Check allowance for selected token
       const currentAllowance = await publicClient.readContract({
-        address: cUSDTokenAddress,
+        address: tokenAddress,
         abi: ERC20_ABI,
         functionName: 'allowance',
         args: [userAddress, spenderAddress]
@@ -213,9 +237,9 @@ export default function App() {
 
       // If allowance is insufficient, request approval
       if (currentAllowance < feeAmount) {
-        setLoadingStep('Approving cUSD (0.25 cUSD for 25 runs)...')
+        setLoadingStep(`Approving ${tokenSymbol} (0.25 ${tokenSymbol} for 25 runs)...`)
         const approveTx = await writeContractAsync({
-          address: cUSDTokenAddress,
+          address: tokenAddress,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [spenderAddress, approvalAmount]
@@ -226,7 +250,7 @@ export default function App() {
       }
 
       // Execute payment contract call
-      setLoadingStep('Paying fee (0.01 cUSD)...')
+      setLoadingStep(`Paying fee (0.01 ${tokenSymbol})...`)
       const requestId = Math.random().toString(36).substring(7) + Date.now()
       
       const payTx = await writeContractAsync({
@@ -493,7 +517,7 @@ export default function App() {
                 <div>
                   <p className="text-[11px] text-[var(--text-muted)] font-medium leading-none mb-1">Fee per generation</p>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
-                    0.01 cUSD <span className="text-[var(--success)] ml-1.5 font-medium text-xs">(~₹0.80 INR)</span>
+                    0.01 cUSD / USDC <span className="text-[var(--success)] ml-1.5 font-medium text-xs">(~₹0.80 INR)</span>
                   </p>
                 </div>
               </div>
