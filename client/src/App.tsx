@@ -69,7 +69,7 @@ export default function App() {
     }
   }, [connectError])
 
-  const TARGET_CHAIN_ID = 11142220 // Celo Sepolia (Testnet)
+  const TARGET_CHAIN_ID = 42220 // Celo Mainnet
 
   // App States
   const [prompt, setPrompt] = useState('')
@@ -490,13 +490,13 @@ export default function App() {
                 <div className="bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/20 p-4 rounded-xl text-xs flex flex-col gap-3 animate-in" role="alert" aria-live="assertive">
                   <div className="flex items-start gap-2.5">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[var(--warning)]" aria-hidden="true" />
-                    <span className="leading-relaxed">Wrong network connected. Please switch your wallet to Celo Sepolia to proceed.</span>
+                    <span className="leading-relaxed">Wrong network connected. Please switch your wallet to Celo Mainnet to proceed.</span>
                   </div>
                   <button
                     onClick={() => switchChain({ chainId: TARGET_CHAIN_ID })}
                     className="w-full bg-[var(--warning)]/20 hover:bg-[var(--warning)]/30 text-[var(--text-primary)] font-semibold py-2 px-3 rounded-lg border border-[var(--warning)]/30 text-[10px] uppercase tracking-wider active:scale-95 transition-all duration-300 cursor-pointer"
                   >
-                    Switch to Celo Sepolia
+                    Switch to Celo Mainnet
                   </button>
                 </div>
               )}

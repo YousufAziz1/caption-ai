@@ -13,13 +13,13 @@ const queryClient = new QueryClient()
 
 // Create Wagmi Config for Celo networks
 export const wagmiConfig = createConfig({
-  chains: [celoSepolia, celo],
+  chains: [celo, celoSepolia],
   connectors: [
     injected()
   ],
   transports: {
-    [celoSepolia.id]: http('https://forno.celo-sepolia.celo-testnet.org'),
-    [celo.id]: http('https://forno.celo.org')
+    [celo.id]: http('https://forno.celo.org'),
+    [celoSepolia.id]: http('https://forno.celo-sepolia.celo-testnet.org')
   }
 })
 
