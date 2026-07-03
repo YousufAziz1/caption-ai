@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAccount, useConnect, useWriteContract, usePublicClient, useSwitchChain } from 'wagmi'
+import { useAccount, useConnect, useWriteContract, usePublicClient, useSwitchChain, useReconnect } from 'wagmi'
 import { parseAbi, getAddress, parseEther } from 'viem'
 import confetti from 'canvas-confetti'
 import { Sparkles, Copy, Check, RotateCcw, Wallet, History, AlertCircle, Coins, Download, Sun, Moon, ChevronDown, HelpCircle } from 'lucide-react'
@@ -60,6 +60,7 @@ export default function App() {
   const publicClient = usePublicClient()
   const { writeContractAsync } = useWriteContract()
   const { switchChain, switchChainAsync } = useSwitchChain()
+  const { reconnect } = useReconnect()
 
   // Set connect errors in app state
   useEffect(() => {
@@ -112,17 +113,19 @@ export default function App() {
   // MiniPay Detection
   const isMiniPay = typeof window !== 'undefined' && (window as any).ethereum?.isMiniPay
 
-  // 1. Silent Auto-connection for MiniPay / standard injected wallet
+  // 1. Silent Auto-reconnect for returning users & auto-connect specifically for MiniPay
   useEffect(() => {
-    if (!isConnected) {
-      const injectedConnector = connectors.find((c) => c.id === 'injected' || c.name.toLowerCase().includes('injected') || c.id.toLowerCase().includes('meta'))
+    reconnect()
+  }, [reconnect])
+
+  useEffect(() => {
+    if (isMiniPay && !isConnected && !isConnecting) {
+      const injectedConnector = connectors.find((c) => c.id === 'injected' || c.name.toLowerCase().includes('injected'))
       if (injectedConnector) {
         connect({ connector: injectedConnector })
-      } else if (connectors[0]) {
-        connect({ connector: connectors[0] })
       }
     }
-  }, [isConnected, connectors, connect])
+  }, [isMiniPay, isConnected, connectors, connect, isConnecting])
 
   // 2. Load History
   useEffect(() => {
@@ -197,7 +200,7 @@ export default function App() {
         })
         
         setLoadingStep('Waiting for approval receipt...')
-        await publicClient.waitForTransactionReceipt({ hash: approveTx })
+        await publicClient.waitForTransactionReceipt({ hash: approveTx, confirmations: 0 })
       }
 
       // Execute payment contract call
@@ -212,7 +215,7 @@ export default function App() {
       })
 
       setLoadingStep('Waiting for on-chain receipt...')
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: payTx })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: payTx, confirmations: 0 })
 
       if (receipt.status !== 'success') {
         throw new Error('On-chain payment transaction failed')
