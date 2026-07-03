@@ -55,6 +55,21 @@ const FAQ_DATA = [
   }
 ]
 
+// Open or initialize the IndexedDB database for history persistent storage (ignores 5MB localStorage limit)
+const openHistoryDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('CaptionAI_HistoryDB', 1)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains('history')) {
+        db.createObjectStore('history', { keyPath: 'timestamp' })
+      }
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
 export default function App() {
   const { address, isConnected, chain } = useAccount()
   const { connect, connectors, error: connectError, isPending: isConnecting } = useConnect()
@@ -137,22 +152,64 @@ export default function App() {
     }
   }, [isMiniPay, isConnected, connectors, connect, isConnecting, hasAttemptedAutoConnect])
 
-  // 2. Load History
+  // 2. Load History from IndexedDB (supporting large base64 image data sizes)
   useEffect(() => {
-    const cached = localStorage.getItem('caption_ai_history')
-    if (cached) {
-      try {
-        setHistory(JSON.parse(cached))
-      } catch (e) {
-        console.error(e)
+    openHistoryDB().then((db) => {
+      const transaction = db.transaction('history', 'readonly')
+      const store = transaction.objectStore('history')
+      const request = store.getAll()
+      request.onsuccess = () => {
+        const items = request.result as SavedGeneration[]
+        items.sort((a, b) => b.timestamp - a.timestamp)
+        setHistory(items.slice(0, 5))
       }
-    }
+      request.onerror = () => {
+        console.error('Failed to load history from IndexedDB:', request.error)
+      }
+    }).catch((e) => {
+      console.error('IndexedDB open error:', e)
+    })
   }, [])
 
-  const saveToHistory = (newGen: SavedGeneration) => {
-    const updated = [newGen, ...history.slice(0, 4)]
-    setHistory(updated)
-    localStorage.setItem('caption_ai_history', JSON.stringify(updated))
+  const saveToHistory = async (newGen: SavedGeneration) => {
+    try {
+      const db = await openHistoryDB()
+      
+      // Save new item
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction('history', 'readwrite')
+        const store = transaction.objectStore('history')
+        const request = store.put(newGen)
+        request.onsuccess = () => resolve()
+        request.onerror = () => reject(request.error)
+      })
+
+      // Get all and keep only the latest 10 items to prevent unlimited DB bloat
+      const allItems: SavedGeneration[] = await new Promise((resolve, reject) => {
+        const transaction = db.transaction('history', 'readonly')
+        const store = transaction.objectStore('history')
+        const request = store.getAll()
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      allItems.sort((a, b) => b.timestamp - a.timestamp)
+
+      if (allItems.length > 10) {
+        const toDelete = allItems.slice(10)
+        const transaction = db.transaction('history', 'readwrite')
+        const store = transaction.objectStore('history')
+        for (const item of toDelete) {
+          store.delete(item.timestamp)
+        }
+      }
+
+      setHistory(allItems.slice(0, 5))
+    } catch (e) {
+      console.error('Failed to save to history:', e)
+      // Fallback state update in case of IndexedDB failure
+      setHistory(prev => [newGen, ...prev.slice(0, 4)])
+    }
   }
 
   const handleCopy = (text: string) => {
