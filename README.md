@@ -117,7 +117,7 @@ Fill in your `PRIVATE_KEY` (containing testnet/mainnet CELO/cUSD) and your `CELO
 - `pnpm deploy:mainnet` — Deploys to Celo Mainnet.
 
 #### Deployed Address (Celo Sepolia Testnet):
-- **CaptionAIPayment:** [`0x3c73703E6464Fe6C3A7A93608779901BE0629731`](https://sepolia.celoscan.io/address/0x3c73703E6464Fe6C3A7A93608779901BE0629731)
+- **CaptionAIPayment:** [`0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2`](https://sepolia.celoscan.io/address/0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2)
 - **MockcUSD Token:** [`0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b`](https://sepolia.celoscan.io/address/0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b)
 
 ---
@@ -156,7 +156,7 @@ pnpm install
 
 Configure environment variables. Create a `.env` file:
 ```env
-VITE_CONTRACT_ADDRESS=0x3c73703E6464Fe6C3A7A93608779901BE0629731
+VITE_CONTRACT_ADDRESS=0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2
 VITE_API_BASE_URL=http://localhost:3001
 ```
 
