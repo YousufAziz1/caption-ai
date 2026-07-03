@@ -15,9 +15,7 @@ const queryClient = new QueryClient()
 export const wagmiConfig = createConfig({
   chains: [celoSepolia, celo],
   connectors: [
-    injected({
-      target: 'metaMask' // Default standard fallback target, MiniPay also intercepts standard injected
-    })
+    injected()
   ],
   transports: {
     [celoSepolia.id]: http('https://forno.celo-sepolia.celo-testnet.org'),

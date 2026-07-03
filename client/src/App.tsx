@@ -56,10 +56,17 @@ const FAQ_DATA = [
 
 export default function App() {
   const { address, isConnected, chain } = useAccount()
-  const { connect, connectors } = useConnect()
+  const { connect, connectors, error: connectError, isPending: isConnecting } = useConnect()
   const publicClient = usePublicClient()
   const { writeContractAsync } = useWriteContract()
   const { switchChain, switchChainAsync } = useSwitchChain()
+
+  // Set connect errors in app state
+  useEffect(() => {
+    if (connectError) {
+      setErrorMsg(connectError.message || 'Failed to connect wallet')
+    }
+  }, [connectError])
 
   const TARGET_CHAIN_ID = 11142220 // Celo Sepolia (Testnet)
 
@@ -366,32 +373,35 @@ export default function App() {
             </button>
 
             <button
+              disabled={isConnecting}
               onClick={() => {
                 if (!isConnected) {
-                const injectedConnector = connectors.find(
-                  (c) =>
-                    c.id === 'injected' ||
-                    c.name.toLowerCase().includes('injected') ||
-                    c.id.toLowerCase().includes('meta')
-                )
-                if (injectedConnector) {
-                  connect({ connector: injectedConnector })
-                } else if (connectors[0]) {
-                  connect({ connector: connectors[0] })
-                } else {
-                  setErrorMsg('No injected wallet detected. Please install MetaMask/Rabby or open this page inside the MiniPay wallet app.')
+                  const injectedConnector = connectors.find(
+                    (c) =>
+                      c.id === 'injected' ||
+                      c.name.toLowerCase().includes('injected') ||
+                      c.id.toLowerCase().includes('meta')
+                  )
+                  if (injectedConnector) {
+                    connect({ connector: injectedConnector })
+                  } else if (connectors[0]) {
+                    connect({ connector: connectors[0] })
+                  } else {
+                    setErrorMsg('No injected wallet detected. Please install MetaMask/Rabby or open this page inside the MiniPay wallet app.')
+                  }
                 }
-              }
-            }}
-            className="flex items-center gap-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] active:scale-95 px-4 py-2 rounded-full border border-[var(--border-subtle)] hover:border-[var(--accent)]/40 transition-all duration-300 cursor-pointer shadow-lg shadow-black/40 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
-          >
-            <Wallet className="w-4 h-4 text-[var(--accent)]" aria-hidden="true" />
-            <span className="text-sm text-[var(--text-primary)] font-medium">
-              {isConnected && address
-                ? `${address.slice(0, 6)}…${address.slice(-4)}`
-                : 'Connect Wallet'}
-            </span>
-          </button>
+              }}
+              className="flex items-center gap-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] active:scale-95 px-4 py-2 rounded-full border border-[var(--border-subtle)] hover:border-[var(--accent)]/40 transition-all duration-300 cursor-pointer shadow-lg shadow-black/40 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Wallet className="w-4 h-4 text-[var(--accent)]" aria-hidden="true" />
+              <span className="text-sm text-[var(--text-primary)] font-medium">
+                {isConnected && address
+                  ? `${address.slice(0, 6)}…${address.slice(-4)}`
+                  : isConnecting
+                  ? 'Connecting...'
+                  : 'Connect Wallet'}
+              </span>
+            </button>
           </div>
         </div>
       </header>
