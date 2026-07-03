@@ -16,7 +16,7 @@ function PrivacyPage() {
   }, [theme])
 
   return (
-    <div className="min-h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)] relative overflow-x-hidden bg-mesh bg-dots flex flex-col justify-between">
+    <div className="min-h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)] relative bg-mesh bg-dots flex flex-col justify-between">
       {/* Glow Orbs */}
       <div className="glow-orb glow-orb-purple w-[500px] h-[500px] -top-[150px] -left-[100px]" aria-hidden="true" />
       <div className="glow-orb glow-orb-pink w-[400px] h-[400px] -bottom-[100px] -right-[100px]" aria-hidden="true" />
