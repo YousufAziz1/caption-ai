@@ -220,13 +220,26 @@ app.post('/api/generate', async (req: Request, res: Response): Promise<any> => {
 
     console.log(`Verifying transaction: ${normalizedTxHash} for wallet: ${walletAddress}`)
     
-    // 1. Fetch transaction receipt on-chain
-    const receipt = await publicClient.getTransactionReceipt({
-      hash: normalizedTxHash as `0x${string}`
-    })
+    // 1. Fetch transaction receipt on-chain with retry logic to account for RPC node sync latency
+    let receipt
+    const maxRetries = 5
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        receipt = await publicClient.getTransactionReceipt({
+          hash: normalizedTxHash as `0x${string}`
+        })
+        if (receipt) break
+      } catch (err) {
+        if (i === maxRetries - 1) {
+          throw err
+        }
+        console.log(`Transaction receipt not found yet, retrying in 1.5s... (Attempt ${i + 1}/${maxRetries})`)
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+      }
+    }
 
     if (!receipt) {
-      return res.status(402).json({ error: 'Transaction receipt not found on Celo' })
+      return res.status(402).json({ error: 'Transaction receipt not found on Celo after multiple retries' })
     }
 
     if (receipt.status !== 'success') {
