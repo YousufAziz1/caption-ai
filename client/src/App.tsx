@@ -6,7 +6,8 @@ import { Sparkles, Copy, Check, RotateCcw, Wallet, History, AlertCircle, Coins, 
 
 const ERC20_ABI = parseAbi([
   'function allowance(address owner, address spender) view returns (uint256)',
-  'function approve(address spender, uint256 value) returns (bool)'
+  'function approve(address spender, uint256 value) returns (bool)',
+  'function balanceOf(address account) view returns (uint256)'
 ])
 
 const PAYMENT_ABI = parseAbi([
@@ -46,11 +47,11 @@ const FAQ_DATA = [
   },
   {
     question: "Is CaptionAI free to use?",
-    answer: "CaptionAI runs on a transparent, pay-per-use model. Instead of recurring monthly subscriptions, you pay a microfee of only 0.02 cUSD (approx. ₹1.60 INR) per generation directly using your connected Celo Sepolia web3 wallet."
+    answer: "CaptionAI runs on a transparent, pay-per-use model. Instead of recurring monthly subscriptions, you pay a microfee of only 0.01 cUSD (approx. ₹0.80 INR) per generation directly using your connected Celo Mainnet web3 wallet."
   },
   {
     question: "How does web3 payment work for caption generation?",
-    answer: "When you generate a post, the app connects to your crypto wallet (like MiniPay, MetaMask, or Rabby) on the Celo network and securely approves a microtransaction of 0.02 cUSD. This pays for the exact server-side LLM and image model computation you consume, with no commitments or hidden fees."
+    answer: "When you generate a post, the app connects to your crypto wallet (like MiniPay, MetaMask, or Rabby) on the Celo network and securely approves a microtransaction of 0.01 cUSD. This pays for the exact server-side LLM and image model computation you consume, with no commitments or hidden fees."
   }
 ]
 
@@ -187,6 +188,21 @@ export default function App() {
       const spenderAddress = getAddress(PAYMENT_CONTRACT_ADDRESS)
       const cUSDTokenAddress = getAddress(CUSD_ADDRESS)
 
+      const feeAmount = parseEther('0.01') // 0.01 cUSD
+      const approvalAmount = parseEther('0.25') // 0.25 cUSD to optimize future runs
+
+      // Check cUSD balance
+      const cUSDBalance = await publicClient.readContract({
+        address: cUSDTokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [userAddress]
+      })
+
+      if (cUSDBalance < feeAmount) {
+        throw new Error('Insufficient cUSD balance. You need at least 0.01 cUSD to proceed. Please swap some CELO to cUSD in your wallet.')
+      }
+
       // Check cUSD allowance
       const currentAllowance = await publicClient.readContract({
         address: cUSDTokenAddress,
@@ -194,9 +210,6 @@ export default function App() {
         functionName: 'allowance',
         args: [userAddress, spenderAddress]
       })
-
-      const feeAmount = parseEther('0.01') // 0.01 cUSD
-      const approvalAmount = parseEther('0.25') // 0.25 cUSD to optimize future runs
 
       // If allowance is insufficient, request approval
       if (currentAllowance < feeAmount) {
