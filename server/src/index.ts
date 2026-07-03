@@ -16,7 +16,7 @@ app.use(express.json())
 const PORT = process.env.PORT || 3001
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
 const CELO_RPC_URL = process.env.CELO_RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org'
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || ''
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2'
 
 // ABI of GenerationPaid event
 const PAYMENT_CONTRACT_ABI = [

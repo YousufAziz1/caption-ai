@@ -106,7 +106,7 @@ export default function App() {
   const PAYMENT_CONTRACT_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS || 
     (isMainnet
       ? '0x0000000000000000000000000000000000000000' // We will deploy on Celo Mainnet
-      : '0x3c73703E6464Fe6C3A7A93608779901BE0629731')) as `0x${string}` // Placeholder / Sepolia deploy address
+      : '0x2C5334DDEaFfc6A56554401EcabD56b0E75Cf3B2')) as `0x${string}` // Deployed Sepolia address
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
